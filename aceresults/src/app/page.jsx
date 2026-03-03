@@ -54,15 +54,16 @@ export default function Home() {
       <section className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-4 py-12">
         
         {/* Circular logo */}
-        <div className="mb-8 rounded-full overflow-hidden border-4 border-[#1A2B42] shadow-lg bg-white">
-          <Image
-            src="/images/ace.jpg"
-            alt="ACE Engineering College Logo"
-            width={180}
-            height={200}
-            className="object-cover"
-          />
-        </div>
+        <div className="mb-8 rounded-full overflow-hidden border-4 border-[#1A2B42] shadow-xl bg-white">
+  <Image
+    src="/images/ace.jpg"
+    alt="ACE Engineering College Logo"
+    width={180}
+    height={180}
+    className="object-cover"
+    priority
+  />
+</div>
 
         <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">
           <span className="text-[#4285F4]">ACE</span>{" "}
