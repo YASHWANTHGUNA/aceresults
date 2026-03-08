@@ -7,12 +7,31 @@ export default function Login() {
   const [rollNumber, setRollNumber] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    if (rollNumber.trim()) {
-      localStorage.setItem("rollNumber", rollNumber);
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          rollNumber,
+          password,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        localStorage.setItem("rollNumber", data.student.rollNumber);
+        router.push("/dashboard");
+      } else {
+        alert(data.message || "Login failed");
+      }
+    } catch (error) {
+      alert("An error occurred. Please try again.");
     }
-    router.push("/dashboard");
   };
 
   return (

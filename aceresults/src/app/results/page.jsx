@@ -9,7 +9,13 @@ export default function ResultsPage() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const storedRollNumber = localStorage.getItem("rollNumber") || "";
+      const storedRollNumber = localStorage.getItem("rollNumber");
+
+      if (!storedRollNumber) {
+        window.location.href = "/";
+        return;
+      }
+
       setRollNumber(storedRollNumber);
     }
   }, []);
