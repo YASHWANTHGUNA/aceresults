@@ -14,6 +14,7 @@ export default function Navbar() {
   const handleLogout = () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem("token");
+      localStorage.removeItem("rollNumber");
     }
     router.push("/");
   };
@@ -30,4 +31,3 @@ export default function Navbar() {
     </nav>
   );
 }
-

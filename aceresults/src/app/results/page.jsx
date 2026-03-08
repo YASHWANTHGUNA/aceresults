@@ -1,19 +1,29 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
 export default function ResultsPage() {
   const [result, setResult] = useState(null);
+  const [rollNumber, setRollNumber] = useState(null);
+
+  useEffect(() => {
+    const storedRollNumber = localStorage.getItem("rollNumber");
+    setRollNumber(storedRollNumber);
+  }, []);
 
   const fetchResult = async () => {
+    if (!rollNumber) {
+      alert("Roll number not found. Please login again.");
+      return;
+    }
     const res = await fetch("/api/results", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        rollNumber: "23AG1A0501",
+        rollNumber: rollNumber,
         semester: "II-I",
       }),
     });
