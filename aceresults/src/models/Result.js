@@ -1,15 +1,19 @@
 import mongoose from "mongoose";
 
-const StudentSchema = new mongoose.Schema({
-  rollNumber: {
-    type: String,
-    required: true,
-    unique: true
-  },
-  name: String,
-  branch: String,
-  batch: String,
-  passwordHash: String
+const ResultSchema = new mongoose.Schema({
+  rollNumber: String,
+  semester: String,
+  subjects: [
+    {
+      subjectCode: String,
+      subjectName: String,
+      credits: Number,
+      grade: String
+    }
+  ],
+  sgpa: Number,
+  cgpa: Number,
+  status: String
 });
 
-export default mongoose.models.Student || mongoose.model("Student", StudentSchema);
+export default mongoose.models.Result || mongoose.model("Result", ResultSchema);
