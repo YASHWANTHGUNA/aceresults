@@ -5,11 +5,13 @@ import html2canvas from "html2canvas";
 
 export default function ResultsPage() {
   const [result, setResult] = useState(null);
-  const [rollNumber, setRollNumber] = useState(null);
+  const [rollNumber, setRollNumber] = useState("");
 
   useEffect(() => {
-    const storedRollNumber = localStorage.getItem("rollNumber");
-    setRollNumber(storedRollNumber);
+    if (typeof window !== "undefined") {
+      const storedRollNumber = localStorage.getItem("rollNumber") || "";
+      setRollNumber(storedRollNumber);
+    }
   }, []);
 
   const fetchResult = async () => {
