@@ -1,3 +1,5 @@
+"use client";
+import { useEffect, useState } from "react";
 import StatCard from "@/components/StatCard";
 import ActionCard from "@/components/ActionCard";
 import QuickLink from "@/components/QuickLink";
@@ -5,13 +7,34 @@ import Link from "next/link";
 import PerformanceChart from "@/components/PerformanceChart";
 
 export default function Dashboard() {
+  const [student, setStudent] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const roll = localStorage.getItem("rollNumber");
+    if (!roll) {
+      window.location.href = "/";
+      return;
+    }
+
+    const studentData = localStorage.getItem("student");
+    if (studentData) {
+      setStudent(JSON.parse(studentData));
+    }
+    setLoading(false);
+  }, []);
+
+  if (loading) return <div>Loading...</div>;
+  if (!student) return <div>Redirecting...</div>;
+
   return (
-    <main className="min-h-screen bg-[#020617] text-white px-8 py-6">
+    <main className="min-h-screen bg-[#020617] text-white px-8 py-6 flex flex-col">
       {/* Header */}
       <section className="mb-10">
-        <p className="text-green-400 text-sm mb-2">Login successful</p>
-        <h1 className="text-3xl font-semibold">Hello, Rahul 👋</h1>
-        <p className="text-white/60">Roll Number: 23AG1A0501</p>
+        <p className="text-green-400 text-sm mb-2">Welcome back</p>
+        <h1 className="text-4xl font-bold">Welcome {student.name} 👋</h1>
+        <p className="text-white/60 mt-2">Roll Number: {student.rollNumber}</p>
+        <p className="text-white/60">Branch: {student.branch}</p>
       </section>
 
       {/* Stat Cards */}
@@ -85,6 +108,12 @@ export default function Dashboard() {
           <PerformanceChart />
         </div>
       </section>
+
+      {/* Footer */}
+      <footer className="text-center mt-16 mb-4 text-sm text-gray-400 border-t border-white/10 pt-8">
+        <p>ACE Engineering College Results Portal</p>
+        <p className="text-xs text-gray-500 mt-2">© 2024 All Rights Reserved</p>
+      </footer>
     </main>
   );
 }

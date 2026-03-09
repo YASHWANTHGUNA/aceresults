@@ -25,6 +25,7 @@ export default function Login() {
 
       if (res.ok) {
         localStorage.setItem("rollNumber", data.student.rollNumber);
+        localStorage.setItem("student", JSON.stringify(data.student));
         router.push("/dashboard");
       } else {
         alert(data.message || "Login failed");
@@ -35,7 +36,7 @@ export default function Login() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-[#020617] to-black text-white flex items-center justify-center px-4">
+    <main className="min-h-screen bg-gradient-to-b from-[#020617] to-black text-white flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-md bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-8 shadow-xl">
         <h1 className="text-2xl font-semibold mb-2">Student Login</h1>
 
@@ -83,6 +84,11 @@ export default function Login() {
           </a>
         </div>
       </div>
+
+      {/* Footer */}
+      <footer className="absolute bottom-0 w-full text-center py-4 text-sm text-gray-400 border-t border-white/10">
+        <p>ACE Engineering College Results Portal</p>
+      </footer>
     </main>
   );
 }

@@ -1,8 +1,14 @@
 import Image from "next/image";
+
+export const metadata = {
+  title: "ACE Results Portal | Student Results Management",
+  description:
+    "Access your semester exam results safely at ACE Engineering College Results Portal. Login to view grades, performance metrics, and download official documents.",
+};
+
 export default function Home() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-[#020617] to-black text-white flex flex-col relative overflow-hidden">
-      
       {/* Background glow */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(59,130,246,0.12),transparent_70%)]"></div>
 
@@ -52,18 +58,17 @@ export default function Home() {
 
       {/* Hero */}
       <section className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-4 py-12">
-        
         {/* Circular logo */}
         <div className="mb-8 rounded-full overflow-hidden border-4 border-[#1A2B42] shadow-xl bg-white">
-  <Image
-    src="/images/ace.jpg"
-    alt="ACE Engineering College Logo"
-    width={180}
-    height={180}
-    className="object-cover"
-    priority
-  />
-</div>
+          <Image
+            src="/images/ace.jpg"
+            alt="ACE Engineering College Logo"
+            width={180}
+            height={180}
+            className="object-cover"
+            priority
+          />
+        </div>
 
         <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">
           <span className="text-[#4285F4]">ACE</span>{" "}
@@ -81,6 +86,16 @@ export default function Home() {
           Login to Portal →
         </a>
       </section>
+
+      {/* Footer */}
+      <footer className="relative z-10 border-t border-white/10 bg-black/30 text-center py-6 text-sm text-gray-400">
+        <p>
+          © 2024 ACE Engineering College Results Portal. All Rights Reserved.
+        </p>
+        <p className="text-xs text-gray-500 mt-1">
+          For support, contact the academic office
+        </p>
+      </footer>
     </main>
   );
 }

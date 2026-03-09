@@ -13,8 +13,7 @@ export default function Navbar() {
 
   const handleLogout = () => {
     if (typeof window !== "undefined") {
-      localStorage.removeItem("token");
-      localStorage.removeItem("rollNumber");
+      localStorage.clear();
     }
     router.push("/");
   };
