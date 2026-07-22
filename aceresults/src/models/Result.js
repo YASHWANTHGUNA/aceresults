@@ -1,19 +1,17 @@
 import mongoose from "mongoose";
 
 const ResultSchema = new mongoose.Schema({
-  rollNumber: String,
-  semester: String,
+  rollNumber: { type: String, required: true },
+  semester: { type: String, required: true },
+  sgpa: { type: Number },
+  cgpa: { type: Number },
+  status: { type: String },
   subjects: [
     {
-      subjectCode: String,
-      subjectName: String,
-      credits: Number,
-      grade: String
+      subjectCode: { type: String },
+      rawString: { type: String } // <--- MUST BE EXACTLY THIS
     }
-  ],
-  sgpa: Number,
-  cgpa: Number,
-  status: String
-});
+  ]
+}, { timestamps: true });
 
 export default mongoose.models.Result || mongoose.model("Result", ResultSchema);
