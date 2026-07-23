@@ -1,67 +1,78 @@
+// src/app/api/auth/[...nextauth]/route.js
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import { connectDB } from "@/lib/db";
+import User from "@/models/User";
+import bcrypt from "bcryptjs";
 
 export const authOptions = {
   providers: [
     CredentialsProvider({
       name: "Credentials",
       credentials: {
-        email: { label: "Email", type: "text", placeholder: "admin@test.com" },
-        password: { label: "Password", type: "password" }
+        email: { label: "Email", type: "text" },
+        password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        // --- HARDCODED TESTING CREDENTIALS ---
+  console.log("========== LOGIN ATTEMPT ==========");
+  console.log("Email:", credentials?.email);
 
-        // 1. Admin Test Account
-        if (credentials.email === "admin" && credentials.password === "admin") {
-          return { 
-            id: "1", 
-            name: "System Admin", 
-            email: "admin@aceec.ac.in", 
-            role: "ADMIN" 
-          };
-        }
-        
-        // 2. HOD Test Account
-        if (credentials.email === "hod" && credentials.password === "hod") {
-          return { 
-            id: "2", 
-            name: "CSM HOD", 
-            email: "hod@aceec.ac.in", 
-            role: "HOD" 
-          };
-        }
+  await connectDB();
+  console.log("Database connected");
 
-        // If credentials don't match, reject the login
-        return null;
-      }
-    })
+  const user = await User.findOne({
+    email: credentials.email.toLowerCase(),
+  });
+
+  console.log("User found:", !!user);
+
+  if (!user) {
+    console.log("User not found");
+    return null;
+  }
+
+  const valid = await bcrypt.compare(
+    credentials.password,
+    user.password
+  );
+
+  console.log("Password valid:", valid);
+
+  if (!valid) {
+    console.log("Password mismatch");
+    return null;
+  }
+
+  console.log("Authentication successful");
+
+  return {
+    id: user._id.toString(),
+    email: user.email,
+    role: user.role,
+    department: user.department,
+  };
+}
+    }),
   ],
   callbacks: {
-    // This injects our custom RBAC role into the encrypted token
     async jwt({ token, user }) {
       if (user) {
-        token.role = user.role; 
+        token.role = user.role;
+        token.department = user.department;
       }
       return token;
     },
-    // This makes the role available to our frontend pages
     async session({ session, token }) {
       if (session?.user) {
-        session.user.role = token.role; 
+        session.user.role = token.role;
+        session.user.department = token.department;
       }
       return session;
-    }
+    },
   },
-  pages: {
-    signIn: "/login",
-  },
-  session: {
-    strategy: "jwt",
-  },
-  // CHANGED: We are now pulling the secure key from your .env file
-  // so it perfectly matches the key proxy.js uses!
-  secret: process.env.NEXTAUTH_SECRET, 
+  pages: { signIn: "/login" },
+  session: { strategy: "jwt" },
+  secret: process.env.NEXTAUTH_SECRET,
 };
 
 const handler = NextAuth(authOptions);
