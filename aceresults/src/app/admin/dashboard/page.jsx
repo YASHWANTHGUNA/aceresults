@@ -199,55 +199,24 @@ export default function AdminDashboard() {
                       <th className="py-2 px-3 font-medium text-center">Credits</th>
                     </tr>
                   </thead>
-                  <tbody className="text-slate-300 text-sm">
-                    {studentData.subjects.map((sub, index) => {
-                      const raw =
-                        sub.rawString || sub.rawExtractedString || sub.subjectCode || "";
-                      const parts = raw.trim().split(/\s+/);
-
-                      let credits = "-",
-                        grade = "-",
-                        code = sub.subjectCode,
-                        name = "-";
-
-                      if (parts.length > 4) {
-                        credits = parts.pop();
-                        parts.pop();
-                        grade = parts.pop();
-
-                        if (parts[0] === studentData.rollNumber) {
-                          parts.shift();
+                  <tbody>
+                  {studentData.subjects.map((sub, index) => (
+                    <tr key={index}>
+                      <td>{sub.code}</td>
+                      <td>{sub.name}</td>
+                      <td
+                        className={
+                          sub.grade.includes("F")
+                            ? "text-rose-400"
+                            : "text-emerald-400"
                         }
-
-                        code = parts.shift();
-                        name = parts.join(" ");
-                      } else {
-                        name = raw;
-                      }
-
-                      return (
-                        <tr
-                          key={index}
-                          className="border-b border-slate-700/50 hover:bg-slate-700/20 transition-colors"
-                        >
-                          <td className="py-2 px-3 font-mono text-blue-400 whitespace-nowrap text-xs">
-                            {code}
-                          </td>
-                          <td className="py-2 px-3 font-medium text-xs">{name}</td>
-                          <td
-                            className={`py-2 px-3 text-center font-bold text-xs ${
-                              grade.includes("F")
-                                ? "text-rose-400"
-                                : "text-emerald-400"
-                            }`}
-                          >
-                            {grade}
-                          </td>
-                          <td className="py-2 px-3 text-center text-xs">{credits}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
+                      >
+                        {sub.grade}
+                      </td>
+                      <td>{sub.credits}</td>
+                    </tr>
+                  ))}
+                </tbody>
                 </table>
               </div>
 
