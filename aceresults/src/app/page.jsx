@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 
 export const metadata = {
   title: "ACE Results Portal | Student Results Management",
@@ -79,18 +80,25 @@ export default function Home() {
           Fast. Clear. Reliable exam results for ACE students 🙂
         </p>
 
-        <a
-          href="/login"
+        <Link
+          href="/student-login"
           className="mt-8 inline-flex items-center gap-2 bg-[#4285F4] hover:bg-[#3367D6] text-white px-8 py-3.5 rounded-lg font-medium transition shadow-lg"
         >
           Login to Portal →
-        </a>
+        </Link>
+
+        <Link
+          href="/login"
+          className="mt-4 text-sm text-white/50 hover:text-white/80 underline"
+        >
+          Staff / Admin Login
+        </Link>
       </section>
 
       {/* Footer */}
       <footer className="relative z-10 border-t border-white/10 bg-black/30 text-center py-6 text-sm text-gray-400">
         <p>
-          © 2024 ACE Engineering College Results Portal. All Rights Reserved.
+          © 2026 ACE Engineering College Results Portal. All Rights Reserved.
         </p>
         <p className="text-xs text-gray-500 mt-1">
           For support, contact the academic office

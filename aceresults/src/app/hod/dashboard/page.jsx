@@ -1,12 +1,85 @@
+// src/app/hod/dashboard/page.jsx
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function HODDashboard() {
+  // ---- Student Master Management state ----
+  const [csvFile, setCsvFile] = useState(null);
+  const [csvUploading, setCsvUploading] = useState(false);
+  const [csvMessage, setCsvMessage] = useState(null);
+  const [csvError, setCsvError] = useState(null);
+  const [csvSummary, setCsvSummary] = useState(null);
+  const [invalidRows, setInvalidRows] = useState([]);
+  const [studentStats, setStudentStats] = useState({ total: 0, recent: [] });
+
+  // ---- Results Management state (unchanged) ----
   const [file, setFile] = useState(null);
   const [semester, setSemester] = useState("I-II");
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
+
+  const fetchStudentStats = async () => {
+    try {
+      const res = await fetch("/api/upload-students");
+      const data = await res.json();
+      if (data.success) setStudentStats({ total: data.total, recent: data.recent });
+    } catch (err) {
+      // non-critical
+    }
+  };
+
+  useEffect(() => {
+     fetchStudentStats();
+  }, []);
+
+  const handleCsvChange = (e) => {
+    const selected = e.target.files[0];
+    if (selected && !selected.name.toLowerCase().endsWith(".csv")) {
+      setCsvError("Please upload a valid .csv file.");
+      setCsvFile(null);
+      return;
+    }
+    setCsvError(null);
+    setCsvFile(selected);
+  };
+
+  const handleCsvUpload = async (e) => {
+    e.preventDefault();
+    if (!csvFile) {
+      setCsvError("Please select a student CSV to upload.");
+      return;
+    }
+    setCsvUploading(true);
+    setCsvError(null);
+    setCsvMessage(null);
+    setCsvSummary(null);
+    setInvalidRows([]);
+
+    const formData = new FormData();
+    formData.append("file", csvFile);
+
+    try {
+      const res = await fetch("/api/upload-students", { method: "POST", body: formData });
+      const data = await res.json();
+
+      if (data.success) {
+        setCsvMessage(data.message);
+        setCsvSummary(data.summary);
+        setInvalidRows(data.invalidRows || []);
+        setCsvFile(null);
+        document.getElementById("csv-upload").value = "";
+        fetchStudentStats();
+      } else {
+        setCsvError(data.message || "Upload failed.");
+        setInvalidRows(data.invalidRows || []);
+      }
+    } catch (err) {
+      setCsvError("Server error. Please check your connection.");
+    } finally {
+      setCsvUploading(false);
+    }
+  };
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -25,7 +98,6 @@ export default function HODDashboard() {
       setError("Please select a T-Sheet PDF to upload.");
       return;
     }
-
     setUploading(true);
     setError(null);
     setMessage(null);
@@ -35,19 +107,13 @@ export default function HODDashboard() {
     formData.append("semester", semester);
 
     try {
-      // Hitting your flawless backend engine!
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
       const data = await res.json();
 
       if (data.success) {
         setMessage(data.message);
-        setFile(null); // Clear the file input on success
-        // Reset the visual file input element
-        document.getElementById("file-upload").value = ""; 
+        setFile(null);
+        document.getElementById("file-upload").value = "";
       } else {
         setError(data.error || data.message || "Upload failed.");
       }
@@ -60,8 +126,6 @@ export default function HODDashboard() {
 
   return (
     <div className="min-h-screen bg-[#020617] text-slate-200 p-8 flex flex-col font-sans">
-      
-      {/* Top Navbar Area */}
       <div className="flex justify-between items-center border-b border-slate-800 pb-6 mb-10">
         <div>
           <h1 className="text-2xl font-bold text-white tracking-wide">HOD Portal</h1>
@@ -72,14 +136,92 @@ export default function HODDashboard() {
         </div>
       </div>
 
-      <div className="max-w-3xl w-full mx-auto mt-4">
-        
+      <div className="max-w-3xl w-full mx-auto mt-4 space-y-10">
+
+        {/* ============ STUDENT MASTER MANAGEMENT ============ */}
         <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-8 shadow-2xl">
-          <h2 className="text-xl font-semibold text-white mb-6">T-Sheet Processing Engine</h2>
-          
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-white">Student Master Management</h2>
+            <span className="text-sm text-slate-400">
+              Total Students: <span className="text-blue-400 font-semibold">{studentStats.total}</span>
+            </span>
+          </div>
+
+          <form onSubmit={handleCsvUpload} className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-2">Upload Student CSV</label>
+              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-700 border-dashed rounded-lg bg-slate-900/50 hover:bg-slate-900 transition-colors">
+                <div className="space-y-2 text-center">
+                  <div className="flex text-sm text-slate-400 justify-center">
+                    <label htmlFor="csv-upload" className="relative cursor-pointer rounded-md font-medium text-blue-400 hover:text-blue-300">
+                      <span>Upload a file</span>
+                      <input id="csv-upload" type="file" accept=".csv" className="sr-only" onChange={handleCsvChange} />
+                    </label>
+                    <p className="pl-1">or drag and drop</p>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    {csvFile ? <span className="text-emerald-400 font-semibold">{csvFile.name}</span> : "CSV up to 5MB"}
+                  </p>
+                  <p className="text-xs text-slate-600">
+                    Columns: Roll Number, Name, Department, Section, Batch, Email, Mobile
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {csvError && <div className="text-red-400 text-sm bg-red-400/10 p-3 rounded border border-red-400/20">{csvError}</div>}
+            {csvMessage && <div className="text-emerald-400 text-sm bg-emerald-400/10 p-3 rounded border border-emerald-400/20">{csvMessage}</div>}
+
+            {csvSummary && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-sm">
+                <div className="bg-slate-900 border border-slate-700 rounded-lg p-3">
+                  <p className="text-slate-400">Added</p>
+                  <p className="text-emerald-400 font-bold text-lg">{csvSummary.added}</p>
+                </div>
+                <div className="bg-slate-900 border border-slate-700 rounded-lg p-3">
+                  <p className="text-slate-400">Updated</p>
+                  <p className="text-blue-400 font-bold text-lg">{csvSummary.updated}</p>
+                </div>
+                <div className="bg-slate-900 border border-slate-700 rounded-lg p-3">
+                  <p className="text-slate-400">Duplicates</p>
+                  <p className="text-yellow-400 font-bold text-lg">{csvSummary.duplicates}</p>
+                </div>
+                <div className="bg-slate-900 border border-slate-700 rounded-lg p-3">
+                  <p className="text-slate-400">Invalid Rows</p>
+                  <p className="text-rose-400 font-bold text-lg">{csvSummary.invalid}</p>
+                </div>
+              </div>
+            )}
+
+            {invalidRows.length > 0 && (
+              <div className="bg-rose-950/20 border border-rose-500/20 rounded-lg p-4 max-h-48 overflow-y-auto">
+                <p className="text-rose-400 text-sm font-semibold mb-2">Rejected Rows ({invalidRows.length})</p>
+                <ul className="text-xs text-slate-400 space-y-1">
+                  {invalidRows.map((r, i) => (
+                    <li key={i}>
+                      Row {r.rowIndex} ({r.row.rollNumber || "?"}): {r.errors.join("; ")}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={csvUploading || !csvFile}
+              className={`w-full py-3 px-4 rounded-md text-sm font-medium text-white
+                ${csvUploading || !csvFile ? "bg-slate-600 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 transition-colors"}`}
+            >
+              {csvUploading ? "Importing Students..." : "Upload Student CSV"}
+            </button>
+          </form>
+        </div>
+
+        {/* ============ RESULTS MANAGEMENT (unchanged) ============ */}
+        <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-8 shadow-2xl">
+          <h2 className="text-xl font-semibold text-white mb-6">Results Management — T-Sheet Processing</h2>
+
           <form onSubmit={handleUpload} className="space-y-6">
-            
-            {/* Semester Selection */}
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-2">Target Semester</label>
               <select
@@ -98,18 +240,14 @@ export default function HODDashboard() {
               </select>
             </div>
 
-            {/* File Upload Area */}
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-2">Upload T-Sheet (PDF only)</label>
               <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-700 border-dashed rounded-lg bg-slate-900/50 hover:bg-slate-900 transition-colors">
                 <div className="space-y-2 text-center">
-                  <svg className="mx-auto h-12 w-12 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
-                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
                   <div className="flex text-sm text-slate-400 justify-center">
-                    <label htmlFor="file-upload" className="relative cursor-pointer rounded-md font-medium text-blue-400 hover:text-blue-300 focus-within:outline-none">
+                    <label htmlFor="file-upload" className="relative cursor-pointer rounded-md font-medium text-blue-400 hover:text-blue-300">
                       <span>Upload a file</span>
-                      <input id="file-upload" name="file-upload" type="file" accept=".pdf" className="sr-only" onChange={handleFileChange} />
+                      <input id="file-upload" type="file" accept=".pdf" className="sr-only" onChange={handleFileChange} />
                     </label>
                     <p className="pl-1">or drag and drop</p>
                   </div>
@@ -120,27 +258,17 @@ export default function HODDashboard() {
               </div>
             </div>
 
-            {/* Feedback Messages */}
             {error && <div className="text-red-400 text-sm bg-red-400/10 p-3 rounded border border-red-400/20">{error}</div>}
             {message && <div className="text-emerald-400 text-sm bg-emerald-400/10 p-3 rounded border border-emerald-400/20">{message}</div>}
 
-            {/* Action Button */}
             <button
               type="submit"
               disabled={uploading || !file}
-              className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white 
-                ${uploading || !file ? 'bg-slate-600 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 transition-colors'}`}
+              className={`w-full py-3 px-4 rounded-md text-sm font-medium text-white
+                ${uploading || !file ? "bg-slate-600 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 transition-colors"}`}
             >
-              {uploading ? (
-                <span className="flex items-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                  Processing Engine Running...
-                </span>
-              ) : (
-                "Process T-Sheet & Map Students"
-              )}
+              {uploading ? "Processing Engine Running..." : "Process T-Sheet & Map Students"}
             </button>
-
           </form>
         </div>
       </div>
