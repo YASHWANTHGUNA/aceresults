@@ -8,6 +8,7 @@ const StudentSchema = new mongoose.Schema(
     section: { type: String, default: "" },
     batch: { type: String, default: "" },
     email: { type: String, default: "", lowercase: true, trim: true },
+    mobile: { type: String, default: "" },
     emailVerified: { type: Boolean, default: false },
     passwordHash: String,
     mustChangePassword: { type: Boolean, default: true },

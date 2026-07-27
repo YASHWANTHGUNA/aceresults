@@ -1,6 +1,7 @@
-// src/app/student-login/page.jsx
 "use client";
+
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function StudentLogin() {
@@ -88,6 +89,12 @@ export default function StudentLogin() {
           >
             {loading ? "Signing in..." : "Login"}
           </button>
+
+          <div className="text-center text-sm text-slate-400 pt-2">
+            <Link href="/register" className="text-blue-400 hover:text-blue-300 transition-colors">
+              New student? Register here
+            </Link>
+          </div>
         </form>
       </div>
     </div>
