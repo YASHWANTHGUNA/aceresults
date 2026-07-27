@@ -1,5 +1,6 @@
 // src/app/dashboard/page.jsx
 "use client";
+
 import { useEffect, useState } from "react";
 import StatCard from "@/components/StatCard";
 import ActionCard from "@/components/ActionCard";
@@ -32,7 +33,14 @@ export default function Dashboard() {
     router.push("/student-login");
   };
 
-  if (loading) return <div className="min-h-screen bg-[#020617] text-white flex items-center justify-center">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#020617] text-white flex items-center justify-center">
+        Loading...
+      </div>
+    );
+  }
+
   if (!student) return null;
 
   return (
@@ -40,11 +48,17 @@ export default function Dashboard() {
       <section className="mb-10 flex justify-between items-start">
         <div>
           <p className="text-green-400 text-sm mb-2">Welcome back</p>
-          <h1 className="text-4xl font-bold">Welcome {student.name || student.rollNumber} 👋</h1>
+          <h1 className="text-4xl font-bold">
+            Welcome {student.name || student.rollNumber} 👋
+          </h1>
           <p className="text-white/60 mt-2">Roll Number: {student.rollNumber}</p>
           <p className="text-white/60">Branch: {student.department}</p>
         </div>
-        <button onClick={handleLogout} className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition">
+
+        <button
+          onClick={handleLogout}
+          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition"
+        >
           Logout
         </button>
       </section>
@@ -57,16 +71,35 @@ export default function Dashboard() {
 
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-4">
-          <h2 className="text-lg font-semibold mb-2">Results & Academic Actions</h2>
+          <h2 className="text-lg font-semibold mb-2">
+            Results & Academic Actions
+          </h2>
+
           <Link href="/results">
-            <ActionCard title="View Semester Results" subtitle="Detailed breakdown of current semester" primary />
+            <ActionCard
+              title="View Semester Results"
+              subtitle="Detailed breakdown of current semester"
+              primary
+            />
           </Link>
+
+          {/* Optional chart usage if needed later */}
+          {/* <PerformanceChart /> */}
         </div>
+
         <div>
           <h2 className="text-lg font-semibold mb-4">Quick Links</h2>
+
           <div className="space-y-3">
             <QuickLink label="Academic Calendar" />
             <QuickLink label="Exam Schedule" />
+
+            <Link href="/change-password">
+              <div className="bg-white/5 hover:bg-white/10 transition border border-white/10 rounded-xl p-4 cursor-pointer">
+                <p className="font-medium">Change Password</p>
+              </div>
+            </Link>
+
             <Link href="/feedback">
               <div className="bg-white/5 hover:bg-white/10 transition border border-white/10 rounded-xl p-4 cursor-pointer">
                 <p className="font-medium">Feedback & Support</p>
