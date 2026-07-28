@@ -28,11 +28,6 @@ export default function Dashboard() {
       .finally(() => setLoading(false));
   }, [router]);
 
-  const handleLogout = async () => {
-    await fetch("/api/logout", { method: "POST" });
-    router.push("/student-login");
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-[#020617] text-white flex items-center justify-center">
@@ -54,13 +49,6 @@ export default function Dashboard() {
           <p className="text-white/60 mt-2">Roll Number: {student.rollNumber}</p>
           <p className="text-white/60">Branch: {student.department}</p>
         </div>
-
-        <button
-          onClick={handleLogout}
-          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition"
-        >
-          Logout
-        </button>
       </section>
 
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">

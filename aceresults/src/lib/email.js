@@ -33,13 +33,14 @@ export function otpEmailHtml(otp) {
 export function loginAlertHtml({ rollNumber, ip, time, notMeUrl }) {
   return `
     <div style="font-family: sans-serif; max-width: 480px; margin: auto;">
-      <h2>New login to your account</h2>
-      <p>Roll Number: <b>${rollNumber}</b></p>
-      <p>Time: ${time}</p>
-      <p>IP: ${ip}</p>
-      <p>Was this you?</p>
+      <h2>New login detected</h2>
+      <p>A login to your ACE Results account was detected.</p>
+      <p><b>Roll Number:</b> ${rollNumber}<br/>
+         <b>Time:</b> ${time}<br/>
+         <b>IP:</b> ${ip}</p>
+      <p>If this was you, no action is needed.</p>
       <a href="${notMeUrl}" style="display:inline-block;background:#dc2626;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;">
-        This wasn't me — secure my account
+        Secure My Account
       </a>
     </div>
   `;

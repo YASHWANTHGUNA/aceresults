@@ -1,5 +1,6 @@
 // src/models/Student.js
 import mongoose from "mongoose";
+
 const StudentSchema = new mongoose.Schema(
   {
     rollNumber: { type: String, required: true, unique: true, uppercase: true, trim: true },
@@ -17,12 +18,25 @@ const StudentSchema = new mongoose.Schema(
     role: { type: String, enum: ["STUDENT", "HOD", "ADMIN"], default: "STUDENT" },
 
     // security additions
-    sessionVersion: { type: Number, default: 0 },       // bump = revoke all sessions
+    sessionVersion: { type: Number, default: 0 }, // bump = revoke all sessions
     lastPasswordChanged: { type: Date, default: null },
     lastLogin: { type: Date, default: null },
     lastLoginIP: { type: String, default: "" },
     failedLoginAttempts: { type: Number, default: 0 },
     accountLockedUntil: { type: Date, default: null },
+
+    // login history tracking
+    loginHistory: {
+      type: [
+        {
+          time: { type: Date, default: Date.now },
+          ip: String,
+          userAgent: String,
+          status: { type: String, enum: ["SUCCESS", "SECURED"], default: "SUCCESS" },
+        },
+      ],
+      default: [],
+    },
   },
   { timestamps: true }
 );

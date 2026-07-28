@@ -10,6 +10,7 @@ export async function POST(req) {
   await connectDB();
   const { rollNumber, password } = await req.json();
   const ip = req.headers.get("x-forwarded-for") || "unknown";
+  const userAgent = req.headers.get("user-agent") || "unknown";
 
   const student = await Student.findOne({ rollNumber: rollNumber.toUpperCase() });
   if (!student) {
@@ -34,6 +35,11 @@ export async function POST(req) {
   student.accountLockedUntil = null;
   student.lastLogin = new Date();
   student.lastLoginIP = ip;
+  student.loginHistory = [
+    { time: new Date(), ip, userAgent, status: "SUCCESS" },
+    ...student.loginHistory,
+  ].slice(0, 20);
+
   await student.save();
 
   const token = jwt.sign(
