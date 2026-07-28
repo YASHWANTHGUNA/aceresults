@@ -1,4 +1,3 @@
-// src/models/Student.js
 import mongoose from "mongoose";
 
 const StudentSchema = new mongoose.Schema(
@@ -32,7 +31,7 @@ const StudentSchema = new mongoose.Schema(
           time: { type: Date, default: Date.now },
           ip: String,
           userAgent: String,
-          status: { type: String, enum: ["SUCCESS", "SECURED"], default: "SUCCESS" },
+          status: { type: String, enum: ["SUCCESS", "SECURED", "CONFIRMED"], default: "SUCCESS" },
         },
       ],
       default: [],
