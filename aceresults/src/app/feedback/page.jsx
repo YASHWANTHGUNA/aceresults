@@ -2,46 +2,72 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function FeedbackPage() {
   const [rollNumber, setRollNumber] = useState("");
   const [description, setDescription] = useState("");
   const [screenshot, setScreenshot] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const router = useRouter();
 
   useEffect(() => {
-    const roll = localStorage.getItem("rollNumber");
-    if (!roll) {
-      window.location.href = "/";
-      return;
-    }
-    setRollNumber(roll);
-    setLoading(false);
-  }, []);
+    fetch("/api/student/me")
+      .then((res) => {
+        if (!res.ok) throw new Error("unauthenticated");
+        return res.json();
+      })
+      .then((data) => {
+        if (!data.success) {
+          router.push("/student-login");
+          return;
+        }
+        setRollNumber(data.student.rollNumber);
+      })
+      .catch(() => router.push("/student-login"))
+      .finally(() => setLoading(false));
+  }, [router]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+    setMessage("");
 
-    if (!rollNumber || !description) {
-      alert("Please fill all required fields");
+    if (!description.trim()) {
+      setError("Please describe the issue.");
       return;
     }
 
-    // Temporary handling (backend later)
-    console.log({
-      rollNumber,
-      description,
-      screenshot,
-    });
+    setSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append("description", description);
+      if (screenshot) formData.append("screenshot", screenshot);
 
-    alert("Feedback submitted successfully!");
+      const res = await fetch("/api/feedback", { method: "POST", body: formData });
+      const data = await res.json();
 
-    // Reset form
-    setDescription("");
-    setScreenshot(null);
+      if (!res.ok || !data.success) {
+        setError(data.message || "Could not submit feedback. Please try again.");
+        return;
+      }
+
+      setMessage(data.message);
+      setDescription("");
+      setScreenshot(null);
+      const fileInput = document.getElementById("screenshot");
+      if (fileInput) fileInput.value = "";
+    } catch (err) {
+      setError("Network error. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  if (loading) return <div className="text-center py-10">Loading...</div>;
+  if (loading) return <div className="text-center py-10 text-white">Loading...</div>;
 
   return (
     <main className="min-h-screen bg-[#020617] text-white px-6 py-8 flex flex-col">
@@ -63,18 +89,14 @@ export default function FeedbackPage() {
             onSubmit={handleSubmit}
             className="bg-white/5 border border-white/10 rounded-2xl p-8 space-y-6"
           >
-            {/* Roll Number */}
+            {/* Roll Number (read-only, from session) */}
             <div>
-              <label className="block text-sm mb-2">
-                Roll Number <span className="text-red-400">*</span>
-              </label>
+              <label className="block text-sm mb-2">Roll Number</label>
               <input
                 type="text"
                 value={rollNumber}
-                onChange={(e) => setRollNumber(e.target.value)}
-                placeholder="e.g. 23AG1A0501"
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 outline-none focus:border-blue-500"
-                required
+                readOnly
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 outline-none text-white/70 cursor-not-allowed"
               />
             </div>
 
@@ -90,6 +112,7 @@ export default function FeedbackPage() {
                 rows={5}
                 className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 outline-none resize-none focus:border-blue-500"
                 required
+                disabled={submitting}
               />
             </div>
 
@@ -107,7 +130,7 @@ export default function FeedbackPage() {
                hover:bg-white/5 transition text-center"
               >
                 <span className="text-white/60 mb-1">
-                  Click to upload or drag & drop
+                  {screenshot ? screenshot.name : "Click to upload or drag & drop"}
                 </span>
                 <span className="text-xs text-white/40">
                   PNG, JPG up to 5MB
@@ -120,15 +143,28 @@ export default function FeedbackPage() {
                 accept="image/png, image/jpeg"
                 onChange={(e) => setScreenshot(e.target.files[0])}
                 className="hidden"
+                disabled={submitting}
               />
             </div>
+
+            {error && (
+              <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm p-3 rounded-lg">
+                {error}
+              </div>
+            )}
+            {message && (
+              <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm p-3 rounded-lg">
+                {message}
+              </div>
+            )}
 
             {/* Submit */}
             <button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-500 py-3 rounded-lg font-medium transition"
+              disabled={submitting}
+              className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 py-3 rounded-lg font-medium transition"
             >
-              Submit Feedback
+              {submitting ? "Submitting..." : "Submit Feedback"}
             </button>
           </form>
         </div>
