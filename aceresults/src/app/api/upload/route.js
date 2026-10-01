@@ -22,7 +22,7 @@ export async function POST(req) {
     const formData = await req.formData();
     const file = formData.get("file");
     const semester = formData.get("semester");
-    const branch = formData.get("branch") || session.user.department || "UNKNOWN";
+    const department = formData.get("department") || session.user.department || "UNKNOWN";
     const batch = formData.get("batch") || "";
 
     if (!file) {
@@ -77,7 +77,7 @@ export async function POST(req) {
         newStudents.map(async (s) => ({
           rollNumber: s.rollNumber,
           name: "", // HOD/Admin can fill this in later via a separate roster upload if you want
-          branch,
+          department,
           batch,
           passwordHash: await bcrypt.hash(s.rollNumber, 10),
           role: "STUDENT",

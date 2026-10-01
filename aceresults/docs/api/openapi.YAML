@@ -1,0 +1,572 @@
+openapi: 3.0.3
+info:
+  title: ACE Results API
+  version: 1.0.0
+  description: |
+    Backend contract for the ACE Engineering College Results Portal.
+
+    **Authentication mechanisms**
+    - **Student session**: JWT in the `student_session` httpOnly cookie, set by `POST /api/login`. Valid 12h. Revoked instantly when `sessionVersion` changes.
+    - **Staff session (NextAuth)**: ADMIN / HOD users sign in via `/api/auth/*` (credentials provider). JWT session cookie carrying `role` and `department`.
+
+    **Response conventions (current state)**
+    Most endpoints return `{ success, message }`. Registration, login and password-change endpoints return `{ message }` only and rely on the HTTP status. See `docs/api/INVENTORY.md` for inconsistencies planned for standardisation.
+servers:
+  - url: http://localhost:3000
+    description: Local development
+  - url: https://your-domain.com
+    description: Production
+tags:
+  - name: Auth
+  - name: Registration
+  - name: Password
+  - name: Student
+  - name: HOD
+  - name: Admin
+  - name: Security
+
+paths:
+  /api/login:
+    post:
+      tags: [Auth]
+      summary: Student login
+      description: Verifies roll number and password, sets the `student_session` cookie. Locks the account for 15 minutes after 5 failed attempts. Sends a login-alert email if the student has a verified email.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rollNumber, password]
+              properties:
+                rollNumber: { type: string, example: 23AG1A6601 }
+                password: { type: string, format: password }
+      responses:
+        "200":
+          description: Login successful. Cookie `student_session` set.
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string, example: Login successful }
+                  student:
+                    type: object
+                    properties:
+                      rollNumber: { type: string }
+                      name: { type: string }
+                      branch: { type: string, description: "Currently always absent; the Student model uses `department`." }
+                      batch: { type: string }
+                      mustChangePassword: { type: boolean }
+        "400": { $ref: "#/components/responses/MessageError" }
+        "401": { description: Invalid password, content: { application/json: { schema: { $ref: "#/components/schemas/Message" } } } }
+        "404": { description: Student not found, content: { application/json: { schema: { $ref: "#/components/schemas/Message" } } } }
+        "423": { description: Account temporarily locked, content: { application/json: { schema: { $ref: "#/components/schemas/Message" } } } }
+
+  /api/logout:
+    post:
+      tags: [Auth]
+      summary: Student logout
+      description: Deletes the `student_session` cookie. Does not bump `sessionVersion`, so the old JWT stays valid until it expires if it was copied elsewhere.
+      responses:
+        "200":
+          description: Cookie cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+
+  /api/register/request-otp:
+    post:
+      tags: [Registration]
+      summary: Start self-registration
+      description: Validates the form, stores a pending registration (10 min TTL) and emails a 6-digit OTP. Batch is derived from the roll number.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rollNumber, firstName, lastName, department, email, mobile, password, confirmPassword]
+              properties:
+                rollNumber: { type: string, example: 23AG1A0521, description: "Format YY AG [1|5] A XXXX" }
+                firstName: { type: string }
+                lastName: { type: string }
+                department: { type: string, example: CSE }
+                email: { type: string, format: email }
+                mobile: { type: string, example: "9876543210", description: "10 digits, starts with 6-9" }
+                password: { type: string, minLength: 6 }
+                confirmPassword: { type: string }
+      responses:
+        "200":
+          description: OTP sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string, example: OTP sent to ab***@gmail.com }
+                  batch: { type: string, example: 2023-2027 }
+        "400": { $ref: "#/components/responses/MessageError" }
+        "409": { description: Account already exists for this roll number, content: { application/json: { schema: { $ref: "#/components/schemas/Message" } } } }
+
+  /api/register/verify-otp:
+    post:
+      tags: [Registration]
+      summary: Complete self-registration
+      description: Verifies the OTP (max 5 attempts) and creates the Student account.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rollNumber, otp]
+              properties:
+                rollNumber: { type: string }
+                otp: { type: string, example: "123456" }
+      responses:
+        "200": { description: Registered, content: { application/json: { schema: { $ref: "#/components/schemas/Message" } } } }
+        "400": { description: Missing fields, no pending registration, expired, or incorrect OTP, content: { application/json: { schema: { $ref: "#/components/schemas/Message" } } } }
+        "409": { description: Account already exists, content: { application/json: { schema: { $ref: "#/components/schemas/Message" } } } }
+        "429": { description: Too many attempts, content: { application/json: { schema: { $ref: "#/components/schemas/Message" } } } }
+
+  /api/change-password/request-otp:
+    post:
+      tags: [Password]
+      summary: Request OTP to change password
+      description: Verifies the current password, then emails an OTP to the email stored in the database (any `email` in the body is ignored). The new password is hashed and held pending until the OTP is verified.
+      security: [{ studentSession: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: { type: string, format: password }
+                newPassword: { type: string, format: password, minLength: 6 }
+      responses:
+        "200": { description: OTP sent, content: { application/json: { schema: { $ref: "#/components/schemas/Message" } } } }
+        "400": { description: Missing fields, wrong current password, or no email on file, content: { application/json: { schema: { $ref: "#/components/schemas/Message" } } } }
+        "401": { $ref: "#/components/responses/NotAuthenticatedMessage" }
+        "404": { description: Student not found, content: { application/json: { schema: { $ref: "#/components/schemas/Message" } } } }
+
+  /api/change-password/verify-otp:
+    post:
+      tags: [Password]
+      summary: Confirm password change
+      description: On a correct OTP, commits the pending password, increments `sessionVersion` (all sessions revoked, including the caller's), and sends a confirmation email.
+      security: [{ studentSession: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [otp]
+              properties:
+                otp: { type: string, example: "123456" }
+      responses:
+        "200": { description: Password updated; log in again, content: { application/json: { schema: { $ref: "#/components/schemas/Message" } } } }
+        "400": { description: Missing, expired or incorrect OTP, or no pending request, content: { application/json: { schema: { $ref: "#/components/schemas/Message" } } } }
+        "401": { $ref: "#/components/responses/NotAuthenticatedMessage" }
+        "429": { description: Too many attempts, content: { application/json: { schema: { $ref: "#/components/schemas/Message" } } } }
+
+  /api/student/me:
+    get:
+      tags: [Student]
+      summary: Current student profile
+      security: [{ studentSession: [] }]
+      responses:
+        "200":
+          description: Profile (passwordHash excluded)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  student: { $ref: "#/components/schemas/Student" }
+        "401": { $ref: "#/components/responses/NotAuthenticated" }
+        "404": { description: Student not found, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+
+  /api/results/{rollNumber}:
+    get:
+      tags: [Student]
+      summary: All semester results for a roll number
+      description: |
+        Allowed for the student who owns the roll number, or an ADMIN/HOD staff session.
+        Note: returns **403** (not 401) when unauthenticated. Sorted by `semester` descending.
+      security: [{ studentSession: [] }, { staffSession: [] }]
+      parameters:
+        - name: rollNumber
+          in: path
+          required: true
+          schema: { type: string, example: 23AG1A6601 }
+          description: Case-insensitive; uppercased server-side.
+      responses:
+        "200":
+          description: Results found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Result" }
+        "403": { description: Neither the owner nor staff, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+        "404": { description: No results found, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /api/feedback:
+    post:
+      tags: [Student]
+      summary: Submit feedback / support request
+      security: [{ studentSession: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [description]
+              properties:
+                description: { type: string }
+                screenshot: { type: string, format: binary, description: "Optional image, max 5MB. Stored as a base64 data URL in MongoDB." }
+      responses:
+        "200":
+          description: Submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  id: { type: string }
+        "400": { description: Missing description or screenshot over 5MB, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+        "401": { $ref: "#/components/responses/NotAuthenticated" }
+        "500": { $ref: "#/components/responses/ServerError" }
+    get:
+      tags: [Student]
+      summary: List the current student's feedback
+      security: [{ studentSession: [] }]
+      responses:
+        "200":
+          description: Feedback items, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        _id: { type: string }
+                        rollNumber: { type: string }
+                        description: { type: string }
+                        screenshotUrl: { type: string }
+                        status: { type: string, enum: [OPEN, IN_PROGRESS, RESOLVED] }
+                        createdAt: { type: string, format: date-time }
+        "401": { $ref: "#/components/responses/NotAuthenticated" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /api/upload-students:
+    post:
+      tags: [HOD]
+      summary: Import student master CSV
+      description: |
+        Upserts students by roll number. New students get the roll number as the default password with `mustChangePassword=true`.
+        Header aliases are accepted (e.g. `HT No`, `Branch`, `Mobile Number`). Required columns: roll number, name.
+        Returns HTTP 200 with `success:false` when no valid rows are found.
+      security: [{ staffSession: [] }]
+      x-required-role: HOD
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary, description: CSV file }
+      responses:
+        "200":
+          description: Import complete (or no valid rows)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  summary:
+                    type: object
+                    properties:
+                      totalRows: { type: integer }
+                      added: { type: integer }
+                      updated: { type: integer }
+                      duplicates: { type: integer }
+                      invalid: { type: integer }
+                  invalidRows:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        rowIndex: { type: integer }
+                        row: { type: object }
+                        errors: { type: array, items: { type: string } }
+        "400": { description: No file, or CSV missing required columns, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+        "401": { $ref: "#/components/responses/NotAuthenticated" }
+        "500": { $ref: "#/components/responses/ServerError" }
+    get:
+      tags: [HOD]
+      summary: Student roster stats for the HOD's department
+      security: [{ staffSession: [] }]
+      x-required-role: HOD
+      responses:
+        "200":
+          description: Total and 10 most recently updated students
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  total: { type: integer }
+                  recent:
+                    type: array
+                    items: { $ref: "#/components/schemas/Student" }
+        "401": { $ref: "#/components/responses/NotAuthenticated" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /api/upload:
+    post:
+      tags: [HOD]
+      summary: Upload and process a T-Sheet PDF
+      description: |
+        Parses the PDF, validates each student record, upserts `Result` documents by (rollNumber, semester), and creates Student accounts for roll numbers not yet present.
+        Records failing validation are returned in `rejected`, not saved.
+      security: [{ staffSession: [] }]
+      x-required-role: HOD
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, semester]
+              properties:
+                file: { type: string, format: binary, description: T-Sheet PDF }
+                semester: { type: string, example: I-II, description: "I-I … IV-II" }
+                branch: { type: string, description: Defaults to the HOD's department }
+                batch: { type: string }
+      responses:
+        "200":
+          description: Processed (or no valid records, with `success:false`)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  rejectedCount: { type: integer }
+                  rejected: { type: array, items: { type: object } }
+        "400": { description: Missing file or semester, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+        "401": { $ref: "#/components/responses/NotAuthenticated" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /api/admin/create-hod:
+    post:
+      tags: [Admin]
+      summary: Create an HOD account
+      security: [{ staffSession: [] }]
+      x-required-role: ADMIN
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, department]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 6 }
+                department: { type: string, example: CSM }
+      responses:
+        "200":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  hod:
+                    type: object
+                    properties:
+                      email: { type: string }
+                      department: { type: string }
+        "400": { description: Missing fields or weak password, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+        "401": { $ref: "#/components/responses/NotAuthenticated" }
+        "409": { description: Email already exists, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+        "500": { $ref: "#/components/responses/ServerError" }
+    get:
+      tags: [Admin]
+      summary: List HOD accounts
+      security: [{ staffSession: [] }]
+      x-required-role: ADMIN
+      responses:
+        "200":
+          description: HODs, newest first (password excluded)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  hods:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        _id: { type: string }
+                        email: { type: string }
+                        role: { type: string, example: HOD }
+                        department: { type: string }
+                        createdAt: { type: string, format: date-time }
+        "401": { $ref: "#/components/responses/NotAuthenticated" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /api/security/confirm-login:
+    get:
+      tags: [Security]
+      summary: Confirm a login ("Yes, it's me") from the alert email
+      description: Link target from the login-alert email. Returns an HTML page. Marks the latest login as CONFIRMED.
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema: { type: string }
+          description: Signed JWT, purpose `confirm-login`, valid 24h.
+      responses:
+        "200": { description: Confirmation HTML page, content: { text/html: { schema: { type: string } } } }
+        "302": { description: Redirect to `/` when token is missing }
+        "400": { description: Invalid or expired link (HTML), content: { text/html: { schema: { type: string } } } }
+        "404": { description: Student not found }
+
+  /api/security/not-me:
+    get:
+      tags: [Security]
+      summary: Secure account ("Secure My Account") from the alert email
+      description: |
+        Revokes all sessions (`sessionVersion++`), forces a password reset, locks the account for 30 minutes and sends a confirmation email.
+        **State-changing GET**: email scanners that prefetch links can trigger it.
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema: { type: string }
+          description: Signed JWT, purpose `not-me`, valid 24h.
+      responses:
+        "200": { description: Account secured, content: { application/json: { schema: { $ref: "#/components/schemas/Message" } } } }
+        "302": { description: Redirect to `/` when token is missing }
+        "400": { description: Invalid or expired link, content: { application/json: { schema: { $ref: "#/components/schemas/Message" } } } }
+        "404": { description: Student not found, content: { application/json: { schema: { $ref: "#/components/schemas/Message" } } } }
+
+components:
+  securitySchemes:
+    studentSession:
+      type: apiKey
+      in: cookie
+      name: student_session
+      description: JWT set by POST /api/login.
+    staffSession:
+      type: apiKey
+      in: cookie
+      name: next-auth.session-token
+      description: NextAuth session for ADMIN / HOD (`__Secure-next-auth.session-token` over HTTPS).
+  schemas:
+    Message:
+      type: object
+      properties:
+        message: { type: string }
+    Error:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        message: { type: string }
+        error: { type: string, description: Present on 500 responses }
+    Student:
+      type: object
+      properties:
+        _id: { type: string }
+        rollNumber: { type: string, example: 23AG1A6601 }
+        name: { type: string }
+        department: { type: string }
+        section: { type: string }
+        batch: { type: string, example: 2023-2027 }
+        email: { type: string }
+        mobile: { type: string }
+        emailVerified: { type: boolean }
+        mustChangePassword: { type: boolean }
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
+        role: { type: string, enum: [STUDENT, HOD, ADMIN] }
+        lastLogin: { type: string, format: date-time, nullable: true }
+    Subject:
+      type: object
+      properties:
+        code: { type: string, example: 22MA101BS }
+        name: { type: string, example: Matrices and Calculus }
+        grade: { type: string, enum: [O, A+, A, B+, B, C, F, F(Ab)] }
+        status: { type: string, enum: [P, F] }
+        credits: { type: number, example: 4 }
+    Result:
+      type: object
+      properties:
+        _id: { type: string }
+        rollNumber: { type: string }
+        semester: { type: string, example: I-I }
+        subjects:
+          type: array
+          items: { $ref: "#/components/schemas/Subject" }
+        sgpa: { type: number, nullable: true, description: Null when the student has a backlog }
+        cgpa: { type: number, nullable: true }
+        status: { type: string, enum: [PASS, FAIL] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+  responses:
+    NotAuthenticated:
+      description: Not authenticated / not authorized for this role
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotAuthenticatedMessage:
+      description: Not authenticated
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Message" }
+    MessageError:
+      description: Validation error
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Message" }
+    ServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
