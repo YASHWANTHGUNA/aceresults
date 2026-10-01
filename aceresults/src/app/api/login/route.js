@@ -104,7 +104,7 @@ export async function POST(req) {
     student: {
       rollNumber: student.rollNumber,
       name: student.name,
-      branch: student.branch,
+      department: student.department,
       batch: student.batch,
       mustChangePassword: student.mustChangePassword,
     },
